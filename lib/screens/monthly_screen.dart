@@ -19,16 +19,19 @@ class _MonthlyScreenState extends State<MonthlyScreen> {
   String? _selectedItem;
   String? _selectedSeller;
 
+  // ✅ 今見ている月
+  DateTime _currentMonth = DateTime(DateTime.now().year, DateTime.now().month);
+
   @override
   void initState() {
     super.initState();
     _saleBox = Hive.box<Sale>('sales');
   }
 
-  List<Sale> _thisMonthSales() {
-    final now = DateTime.now();
+  // ✅ 指定月のデータ取得
+  List<Sale> _salesOfMonth(DateTime month) {
     return _saleBox.values
-        .where((s) => s.date.year == now.year && s.date.month == now.month)
+        .where((s) => s.date.year == month.year && s.date.month == month.month)
         .toList();
   }
 
@@ -50,7 +53,35 @@ class _MonthlyScreenState extends State<MonthlyScreen> {
     return map;
   }
 
-  // ✅ 絞り込み選択UI（灰色 / 丸角 / カード風）
+  // ✅ 月移動
+  void _changeMonth(int offset) {
+    setState(() {
+      _currentMonth = DateTime(
+        _currentMonth.year,
+        _currentMonth.month + offset,
+      );
+    });
+  }
+
+  // ✅ 月選択
+  Future<void> _pickMonth() async {
+    final result = await showDatePicker(
+      context: context,
+      initialDate: _currentMonth,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2035),
+      locale: const Locale("ja", "JP"),
+      helpText: "月を選択",
+    );
+
+    if (result != null) {
+      setState(() {
+        _currentMonth = DateTime(result.year, result.month);
+      });
+    }
+  }
+
+  // ✅ 絞り込みUI（灰色のポップ）
   Future<void> _showFilterSheet({
     required List<String> items,
     required ValueChanged<String?> onSelected,
@@ -105,13 +136,8 @@ class _MonthlyScreenState extends State<MonthlyScreen> {
       },
     );
 
-    if (result == null) return; // ← 外タップは何もしない（重要）
-
-    if (result == "_clear") {
-      onSelected(null);
-    } else {
-      onSelected(result);
-    }
+    if (result == null) return;
+    onSelected(result == "_clear" ? null : result);
   }
 
   @override
@@ -119,7 +145,7 @@ class _MonthlyScreenState extends State<MonthlyScreen> {
     return ValueListenableBuilder(
       valueListenable: _saleBox.listenable(),
       builder: (_, __, ___) {
-        List<Sale> sales = _thisMonthSales();
+        List<Sale> sales = _salesOfMonth(_currentMonth);
 
         if (_selectedSeller != null) {
           sales = sales.where((s) => s.sellerName == _selectedSeller).toList();
@@ -130,12 +156,10 @@ class _MonthlyScreenState extends State<MonthlyScreen> {
 
         final total = _total(sales);
 
-        Map<String, int> grouped;
-        if (_selectedItem != null && _selectedSeller == null) {
-          grouped = _sumBySeller(sales);
-        } else {
-          grouped = _sumByItem(sales);
-        }
+        Map<String, int> grouped =
+            (_selectedItem != null && _selectedSeller == null)
+            ? _sumBySeller(sales)
+            : _sumByItem(sales);
 
         final entries = grouped.entries.toList();
 
@@ -150,12 +174,38 @@ class _MonthlyScreenState extends State<MonthlyScreen> {
             elevation: 0,
           ),
           body: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(15),
             child: Column(
               children: [
-                const SizedBox(height: 24),
+                const SizedBox(height: 1),
 
-                // 絞り込み UI
+                // ✅ 月の切り替え UI
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.chevron_left, size: 26),
+                      onPressed: () => _changeMonth(-1),
+                    ),
+                    GestureDetector(
+                      onTap: _pickMonth,
+                      child: Text(
+                        "${_currentMonth.year}/${_currentMonth.month.toString().padLeft(2, '0')}",
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.chevron_right, size: 26),
+                      onPressed: () => _changeMonth(1),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 11),
+
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
@@ -179,9 +229,8 @@ class _MonthlyScreenState extends State<MonthlyScreen> {
                   ],
                 ),
 
-                const SizedBox(height: 30),
+                const SizedBox(height: 26),
 
-                // 総額
                 Text(
                   "¥${NumberFormat('#,###').format(total)}",
                   style: const TextStyle(
@@ -225,29 +274,31 @@ class _MonthlyScreenState extends State<MonthlyScreen> {
                         const SizedBox(height: 32),
                         Expanded(
                           child: ListView(
-                            children: entries.map((e) {
-                              return Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 6,
-                                ),
-                                child: Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text(
-                                      e.key,
-                                      style: const TextStyle(fontSize: 16),
+                            children: entries
+                                .map(
+                                  (e) => Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 6,
                                     ),
-                                    Text(
-                                      "¥${NumberFormat('#,###').format(e.value)}",
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                      ),
+                                    child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text(
+                                          e.key,
+                                          style: const TextStyle(fontSize: 16),
+                                        ),
+                                        Text(
+                                          "¥${NumberFormat('#,###').format(e.value)}",
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                  ],
-                                ),
-                              );
-                            }).toList(),
+                                  ),
+                                )
+                                .toList(),
                           ),
                         ),
                       ],

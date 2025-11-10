@@ -15,6 +15,9 @@ import 'data/member_store.dart';
 // ★ screens
 import 'screens/main_navigation.dart';
 
+// ★ 追加（DatePicker に必要）
+import 'package:flutter_localizations/flutter_localizations.dart';
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Hive.initFlutter();
@@ -45,6 +48,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: '売上管理',
+
       theme: ThemeData(
         useMaterial3: true,
         scaffoldBackgroundColor: Colors.white,
@@ -54,6 +58,15 @@ class MyApp extends StatelessWidget {
         ),
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
       ),
+
+      // ✅ ここだけ新しく追加（DatePickerのエラー修正）
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+      ],
+      supportedLocales: const [Locale('ja', 'JP')],
+
       home: const MainNavigation(),
     );
   }
