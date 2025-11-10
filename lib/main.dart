@@ -1,31 +1,37 @@
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'models/sale.dart';
-import 'models/buyer_status.dart'; // ★ 追加
-import 'screens/main_navigation.dart';
 import 'package:intl/date_symbol_data_local.dart';
-import 'package:okami/data/item_store.dart';
-import 'package:okami/data/member_store.dart';
+
+// ★ models
+import 'models/sale.dart';
+import 'models/buyer_status.dart';
+import 'models/item.dart';
+import 'models/member.dart';
+
+// ★ data store
+import 'data/item_store.dart';
+import 'data/member_store.dart';
+
+// ★ screens
+import 'screens/main_navigation.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
   await Hive.initFlutter();
 
-  // ★ アダプタ登録（順番大事）
+  // ------------ Hive Adapter 登録（順番超重要） ------------
   Hive.registerAdapter(SaleAdapter());
-  Hive.registerAdapter(BuyerStatusAdapter()); // ← 追加
+  Hive.registerAdapter(BuyerStatusAdapter());
+  Hive.registerAdapter(ItemAdapter()); // ★ 追加
+  Hive.registerAdapter(MemberAdapter()); // ★ 追加
 
-  // ★ ボックス開く
+  // ------------ Box Open（Sale は直接開く / Item & Member は Store 側で） ------------
   await Hive.openBox<Sale>('sales');
 
-  // ★ 今だけ一回だけデータ初期化したいならこれ
-  //    → 実行後、コメントアウトしてOK
-  // await Hive.box<Sale>('sales').clear();
+  await ItemStore.init(); // ★ Active/Inactive 対応済み
+  await MemberStore.init(); // ★ Active/Inactive 対応済み
 
-  await ItemStore.init();
-  await MemberStore.init();
-
+  // 日本語日付対応
   await initializeDateFormatting('ja_JP', null);
 
   runApp(const MyApp());

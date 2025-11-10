@@ -18,7 +18,7 @@ class _ManageMembersScreenState extends State<ManageMembersScreen> {
   }
 
   void _delete(String name) async {
-    await MemberStore.delete(name);
+    await MemberStore.deactivate(name);
     setState(() {});
   }
 

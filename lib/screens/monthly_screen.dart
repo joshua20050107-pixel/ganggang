@@ -3,6 +3,8 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../models/sale.dart';
+import '../data/item_store.dart';
+import '../data/member_store.dart';
 
 class MonthlyScreen extends StatefulWidget {
   const MonthlyScreen({super.key});
@@ -13,7 +15,9 @@ class MonthlyScreen extends StatefulWidget {
 
 class _MonthlyScreenState extends State<MonthlyScreen> {
   late Box<Sale> _saleBox;
-  String _filter = '総額';
+
+  String? _selectedItem;
+  String? _selectedSeller;
 
   @override
   void initState() {
@@ -28,194 +32,247 @@ class _MonthlyScreenState extends State<MonthlyScreen> {
         .toList();
   }
 
-  int _totalAmount(List<Sale> sales) =>
-      sales.fold(0, (sum, s) => sum + s.total);
+  int _total(List<Sale> sales) => sales.fold(0, (sum, s) => sum + s.total);
 
-  int _paidCount(List<Sale> sales) => sales.where((s) => s.isPaid).length;
-
-  int _unpaidCount(List<Sale> sales) => sales.where((s) => !s.isPaid).length;
-
-  Map<String, int> _groupByItem(List<Sale> sales) {
+  Map<String, int> _sumByItem(List<Sale> sales) {
     final map = <String, int>{};
     for (final sale in sales) {
-      map[sale.itemName] = (map[sale.itemName] ?? 0) + 1;
+      map[sale.itemName] = (map[sale.itemName] ?? 0) + sale.total;
     }
     return map;
   }
 
-  Map<String, int> _groupBySeller(List<Sale> sales) {
+  Map<String, int> _sumBySeller(List<Sale> sales) {
     final map = <String, int>{};
     for (final sale in sales) {
-      map[sale.sellerName] = (map[sale.sellerName] ?? 0) + 1;
+      map[sale.sellerName] = (map[sale.sellerName] ?? 0) + sale.total;
     }
     return map;
+  }
+
+  // ✅ 絞り込み選択UI（灰色 / 丸角 / カード風）
+  Future<void> _showFilterSheet({
+    required List<String> items,
+    required ValueChanged<String?> onSelected,
+    required String title,
+  }) async {
+    final result = await showDialog<String>(
+      context: context,
+      barrierColor: Colors.black26,
+      builder: (context) {
+        return Center(
+          child: Material(
+            color: Colors.transparent,
+            child: Container(
+              width: 260,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(18),
+                boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 12)],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  for (var i in items)
+                    ListTile(
+                      title: Text(i),
+                      onTap: () => Navigator.pop(context, i),
+                    ),
+                  const Divider(),
+                  ListTile(
+                    title: const Center(
+                      child: Text(
+                        "クリア",
+                        style: TextStyle(color: Colors.redAccent),
+                      ),
+                    ),
+                    onTap: () => Navigator.pop(context, "_clear"),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+
+    if (result == null) return; // ← 外タップは何もしない（重要）
+
+    if (result == "_clear") {
+      onSelected(null);
+    } else {
+      onSelected(result);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF6F6F7),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        title: const Text(
-          '月の売上',
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
-        ),
-        centerTitle: true,
-        elevation: 0,
-      ),
-      body: ValueListenableBuilder(
-        valueListenable: _saleBox.listenable(),
-        builder: (context, Box<Sale> box, _) {
-          final sales = _thisMonthSales();
-          if (sales.isEmpty) {
-            return const Center(child: Text('今月の売上データがありません'));
-          }
+    return ValueListenableBuilder(
+      valueListenable: _saleBox.listenable(),
+      builder: (_, __, ___) {
+        List<Sale> sales = _thisMonthSales();
 
-          final total = _totalAmount(sales);
-          final paid = _paidCount(sales);
-          final unpaid = _unpaidCount(sales);
+        if (_selectedSeller != null) {
+          sales = sales.where((s) => s.sellerName == _selectedSeller).toList();
+        }
+        if (_selectedItem != null) {
+          sales = sales.where((s) => s.itemName == _selectedItem).toList();
+        }
 
-          return SingleChildScrollView(
+        final total = _total(sales);
+
+        Map<String, int> grouped;
+        if (_selectedItem != null && _selectedSeller == null) {
+          grouped = _sumBySeller(sales);
+        } else {
+          grouped = _sumByItem(sales);
+        }
+
+        final entries = grouped.entries.toList();
+
+        return Scaffold(
+          backgroundColor: const Color(0xFFF6F6F7),
+          appBar: AppBar(
+            title: const Text(
+              "月の売上",
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            backgroundColor: Colors.white,
+            elevation: 0,
+          ),
+          body: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                const SizedBox(height: 10),
-                Text(
-                  '¥${NumberFormat('#,###').format(total)}',
-                  style: const TextStyle(
-                    fontSize: 36,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  '完了: $paid件　未払い: $unpaid件',
-                  style: const TextStyle(fontSize: 16, color: Colors.black54),
-                ),
-                const SizedBox(height: 20),
-                SizedBox(
-                  height: 180,
-                  child: PieChart(
-                    PieChartData(
-                      sections: [
-                        PieChartSectionData(
-                          value: paid.toDouble(),
-                          color: Colors.greenAccent,
-                          title: '完了',
-                          titleStyle: const TextStyle(
-                            color: Colors.black,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        PieChartSectionData(
-                          value: unpaid.toDouble(),
-                          color: Colors.redAccent,
-                          title: '未払い',
-                          titleStyle: const TextStyle(
-                            color: Colors.black,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                      sectionsSpace: 2,
-                      centerSpaceRadius: 40,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 4,
+                const SizedBox(height: 24),
+
+                // 絞り込み UI
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    _filterButton(
+                      label: _selectedItem ?? "商品▼",
+                      onTap: () => _showFilterSheet(
+                        items: ItemStore.getActive(),
+                        title: "商品で絞り込む",
+                        onSelected: (v) => setState(() => _selectedItem = v),
                       ),
-                    ],
-                  ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      value: _filter,
-                      isExpanded: true,
-                      items: const [
-                        DropdownMenuItem(value: '総額', child: Text('総額で表示')),
-                        DropdownMenuItem(value: '商品別', child: Text('商品別で表示')),
-                        DropdownMenuItem(
-                          value: '売った人別',
-                          child: Text('売った人別で表示'),
-                        ),
-                      ],
-                      onChanged: (value) {
-                        setState(() => _filter = value!);
-                      },
                     ),
+                    const SizedBox(width: 10),
+                    _filterButton(
+                      label: _selectedSeller ?? "人▼",
+                      onTap: () => _showFilterSheet(
+                        items: MemberStore.getActive(),
+                        title: "人で絞り込む",
+                        onSelected: (v) => setState(() => _selectedSeller = v),
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 30),
+
+                // 総額
+                Text(
+                  "¥${NumberFormat('#,###').format(total)}",
+                  style: const TextStyle(
+                    fontSize: 34,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(height: 20),
-                if (_filter == '総額')
-                  Text(
-                    '今月の総売上は ¥${NumberFormat('#,###').format(total)} です。',
-                    style: const TextStyle(fontSize: 16),
+
+                const SizedBox(height: 26),
+
+                if (entries.isEmpty)
+                  const Expanded(child: Center(child: Text("データがありません")))
+                else
+                  Expanded(
+                    child: Column(
+                      children: [
+                        SizedBox(
+                          height: 200,
+                          child: PieChart(
+                            PieChartData(
+                              centerSpaceRadius: 40,
+                              sectionsSpace: 2,
+                              sections: [
+                                for (int i = 0; i < entries.length; i++)
+                                  PieChartSectionData(
+                                    value: entries[i].value.toDouble(),
+                                    color: Colors
+                                        .primaries[i % Colors.primaries.length],
+                                    title: entries[i].key,
+                                    radius: 70,
+                                    titleStyle: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 32),
+                        Expanded(
+                          child: ListView(
+                            children: entries.map((e) {
+                              return Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 6,
+                                ),
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      e.key,
+                                      style: const TextStyle(fontSize: 16),
+                                    ),
+                                    Text(
+                                      "¥${NumberFormat('#,###').format(e.value)}",
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                if (_filter == '商品別')
-                  _buildGroupedList(_groupByItem(sales), '商品'),
-                if (_filter == '売った人別')
-                  _buildGroupedList(_groupBySeller(sales), '売った人'),
               ],
             ),
-          );
-        },
-      ),
+          ),
+        );
+      },
     );
   }
 
-  Widget _buildGroupedList(Map<String, int> data, String label) {
-    final entries = data.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          '$labelごとの件数',
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+  Widget _filterButton({required String label, required VoidCallback onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Colors.black26),
         ),
-        const SizedBox(height: 10),
-        ...entries.map((e) {
-          return Container(
-            margin: const EdgeInsets.symmetric(vertical: 6),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  e.key,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                Text(
-                  '${e.value}件',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          );
-        }),
-      ],
+        child: Text(label, style: const TextStyle(fontSize: 14)),
+      ),
     );
   }
 }

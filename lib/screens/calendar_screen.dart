@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 
 class CalendarScreen extends StatefulWidget {
-  final ValueNotifier<DateTime> selectedDate; // ← 共有している日付を受け取る
+  final ValueNotifier<DateTime> selectedDate;
 
   const CalendarScreen({super.key, required this.selectedDate});
 
@@ -39,9 +39,49 @@ class _CalendarScreenState extends State<CalendarScreen> {
               headerStyle: const HeaderStyle(
                 formatButtonVisible: false,
                 titleCentered: true,
+                leftChevronIcon: Icon(Icons.chevron_left, size: 20),
+                rightChevronIcon: Icon(Icons.chevron_right, size: 20),
+                titleTextStyle: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
 
-              onDaySelected: (selected, _) {
+              daysOfWeekStyle: const DaysOfWeekStyle(
+                weekdayStyle: TextStyle(color: Colors.black87),
+                weekendStyle: TextStyle(color: Colors.black87),
+              ),
+
+              calendarStyle: CalendarStyle(
+                outsideDaysVisible: false,
+
+                // ✅ 今日の日付 = 薄い外枠の丸
+                todayDecoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.black26, width: 1.4),
+                ),
+                todayTextStyle: const TextStyle(
+                  color: Colors.black87,
+                  fontWeight: FontWeight.w600,
+                ),
+
+                // ✅ 選択中の日付 = 黒塗り丸
+                selectedDecoration: const BoxDecoration(
+                  color: Colors.black,
+                  shape: BoxShape.circle,
+                ),
+                selectedTextStyle: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+
+              onDaySelected: (selected, focused) {
+                setState(() {
+                  _selectedDay = selected;
+                  _focusedDay = focused;
+                });
+
                 widget.selectedDate.value = DateTime(
                   selected.year,
                   selected.month,

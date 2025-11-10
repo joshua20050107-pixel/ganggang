@@ -52,133 +52,153 @@ class _HomeScreenState extends State<HomeScreen> {
     return ValueListenableBuilder(
       valueListenable: widget.selectedDate,
       builder: (_, DateTime selectedDay, __) {
-        final sales = _filteredSales(selectedDay);
-        final total = _totalSales(sales);
-        final formattedDate = DateFormat('yyyy/MM/dd').format(selectedDay);
+        return ValueListenableBuilder(
+          valueListenable: _saleBox.listenable(),
+          builder: (_, __, ___) {
+            final sales = _filteredSales(selectedDay);
+            final total = _totalSales(sales);
+            final formattedDate = DateFormat('yyyy/MM/dd').format(selectedDay);
 
-        return Scaffold(
-          backgroundColor: const Color(0xFFF6F6F7),
+            return Scaffold(
+              backgroundColor: const Color(0xFFF6F6F7),
 
-          floatingActionButton: FloatingActionButton(
-            onPressed: () {
-              showDialog(
-                context: context,
-                barrierDismissible: true,
-                builder: (_) => const AddSaleModal(),
-              );
-            },
-            backgroundColor: Colors.black,
-            child: const Icon(Icons.add, color: Colors.white),
-          ),
-          floatingActionButtonLocation:
-              FloatingActionButtonLocation.centerFloat,
+              floatingActionButton: FloatingActionButton(
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    barrierDismissible: true,
+                    builder: (_) => const AddSaleModal(),
+                  );
+                },
+                backgroundColor: Colors.black,
+                child: const Icon(Icons.add, color: Colors.white),
+              ),
+              floatingActionButtonLocation:
+                  FloatingActionButtonLocation.centerFloat,
 
-          body: SafeArea(
-            child: Column(
-              children: [
-                const SizedBox(height: 14),
-
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+              body: SafeArea(
+                child: Column(
                   children: [
-                    IconButton(
-                      icon: const Icon(Icons.chevron_left, size: 26),
-                      onPressed: () => _changeDay(-1),
+                    const SizedBox(height: 14),
+
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.chevron_left, size: 26),
+                          onPressed: () => _changeDay(-1),
+                        ),
+                        Text(
+                          formattedDate,
+                          style: const TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.black87,
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.chevron_right, size: 26),
+                          onPressed: () => _changeDay(1),
+                        ),
+                      ],
                     ),
 
-                    Text(
-                      formattedDate,
-                      style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.black87,
+                    const SizedBox(height: 12),
+                    const Text(
+                      '今日の売上',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
+                    const SizedBox(height: 6),
 
-                    IconButton(
-                      icon: const Icon(Icons.chevron_right, size: 26),
-                      onPressed: () => _changeDay(1),
+                    Text(
+                      '¥${NumberFormat('#,###').format(total)}',
+                      style: const TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 60),
+                      height: 1,
+                      color: Colors.black12,
+                    ),
+                    const SizedBox(height: 14),
+
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () {
+                          // 外を押したら削除モード解除
+                          if (_showDeleteForId != null) {
+                            setState(() => _showDeleteForId = null);
+                          }
+                        },
+                        child: NotificationListener<ScrollNotification>(
+                          onNotification: (_) {
+                            // スクロールしたら削除モード解除
+                            if (_showDeleteForId != null) {
+                              setState(() => _showDeleteForId = null);
+                            }
+                            return false;
+                          },
+                          child: sales.isEmpty
+                              ? const Center(child: Text('まだ売上はありません'))
+                              : GridView.builder(
+                                  padding: const EdgeInsets.only(
+                                    bottom: 80,
+                                    left: 14,
+                                    right: 14,
+                                    top: 4,
+                                  ),
+                                  itemCount: sales.length,
+                                  gridDelegate:
+                                      const SliverGridDelegateWithFixedCrossAxisCount(
+                                        crossAxisCount: 2,
+                                        mainAxisSpacing: 14,
+                                        crossAxisSpacing: 14,
+                                        childAspectRatio: 0.824,
+                                      ),
+                                  itemBuilder: (context, index) {
+                                    final sale = sales[index];
+                                    return SaleCard(
+                                      sale: sale,
+                                      showDelete: _showDeleteForId == sale.id,
+                                      onTap: () {
+                                        if (_showDeleteForId != null) {
+                                          setState(
+                                            () => _showDeleteForId = null,
+                                          );
+                                          return;
+                                        }
+                                        showDialog(
+                                          context: context,
+                                          barrierDismissible: true,
+                                          builder: (_) =>
+                                              SaleDetailSheet(sale: sale),
+                                        );
+                                      },
+                                      onLongPress: () => setState(
+                                        () => _showDeleteForId = sale.id,
+                                      ),
+                                      onDelete: () async {
+                                        await sale.delete();
+                                        if (!mounted) return;
+                                        setState(() => _showDeleteForId = null);
+                                      },
+                                    );
+                                  },
+                                ),
+                        ),
+                      ),
                     ),
                   ],
                 ),
-
-                const SizedBox(height: 12),
-                const Text(
-                  '今日の売上',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 6),
-
-                Text(
-                  '¥${NumberFormat('#,###').format(total)}',
-                  style: const TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 60),
-                  height: 1,
-                  color: Colors.black12,
-                ),
-                const SizedBox(height: 14),
-
-                Expanded(
-                  child: ValueListenableBuilder(
-                    valueListenable: _saleBox.listenable(),
-                    builder: (_, __, ___) {
-                      final sales = _filteredSales(selectedDay);
-                      if (sales.isEmpty) {
-                        return const Center(child: Text('まだ売上はありません'));
-                      }
-
-                      return GridView.builder(
-                        padding: const EdgeInsets.only(
-                          bottom: 80,
-                          left: 14,
-                          right: 14,
-                          top: 4,
-                        ),
-                        itemCount: sales.length,
-                        gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 2,
-                              mainAxisSpacing: 14,
-                              crossAxisSpacing: 14,
-                              childAspectRatio: 0.824,
-                            ),
-                        itemBuilder: (context, index) {
-                          final sale = sales[index];
-                          return SaleCard(
-                            sale: sale,
-                            showDelete: _showDeleteForId == sale.id,
-                            onTap: () {
-                              if (_showDeleteForId != null) {
-                                setState(() => _showDeleteForId = null);
-                                return;
-                              }
-                              showDialog(
-                                context: context,
-                                barrierDismissible: true,
-                                builder: (_) => SaleDetailSheet(sale: sale),
-                              );
-                            },
-                            onLongPress: () =>
-                                setState(() => _showDeleteForId = sale.id),
-                            onDelete: () {
-                              sale.delete();
-                              setState(() => _showDeleteForId = null);
-                            },
-                          );
-                        },
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         );
       },
     );

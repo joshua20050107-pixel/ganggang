@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../data/sale_store.dart';
-import 'package:flutter/services.dart'; // ← これ忘れずに先頭にあるか確認
-import 'package:okami/data/member_store.dart';
-import 'package:okami/data/item_store.dart';
+import '../data/member_store.dart';
+import '../data/item_store.dart';
 
 class AddSaleModal extends StatefulWidget {
   const AddSaleModal({super.key});
@@ -14,10 +14,9 @@ class AddSaleModal extends StatefulWidget {
 class _AddSaleModalState extends State<AddSaleModal> {
   final _formKey = GlobalKey<FormState>();
 
-  // 仮データ（後でHiveにする）
-  List<String> get _sellers => MemberStore.getAll();
-
-  List<String> get _items => ItemStore.getAll();
+  // ✅ Active のみ取得
+  List<String> get _sellers => MemberStore.getActive();
+  List<String> get _items => ItemStore.getActive();
 
   String? _selectedSeller;
   String? _selectedItem;
@@ -26,6 +25,7 @@ class _AddSaleModalState extends State<AddSaleModal> {
   final _locationCtrl = TextEditingController();
   final _buyerCtrl = TextEditingController();
   final _noteCtrl = TextEditingController();
+
   List<String> _buyers = [];
 
   void _addBuyer() {
@@ -71,15 +71,13 @@ class _AddSaleModalState extends State<AddSaleModal> {
               BoxShadow(
                 color: Colors.black12,
                 blurRadius: 12,
-                offset: Offset(0, 4),
+                offset: const Offset(0, 4),
               ),
             ],
           ),
-
           child: GestureDetector(
             behavior: HitTestBehavior.translucent,
-            onTap: () => FocusScope.of(context).unfocus(), // ← 背景タップで閉じる
-
+            onTap: () => FocusScope.of(context).unfocus(),
             child: SingleChildScrollView(
               child: Form(
                 key: _formKey,
@@ -105,8 +103,6 @@ class _AddSaleModalState extends State<AddSaleModal> {
                     ),
 
                     const SizedBox(height: 16),
-
-                    const SizedBox(height: 10),
 
                     // ---- 売った人 ----
                     LayoutBuilder(
@@ -149,12 +145,12 @@ class _AddSaleModalState extends State<AddSaleModal> {
                       },
                     ),
 
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 14),
 
                     // ---- 商品 ----
                     Text(
                       "商品名",
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
                       ),
@@ -200,11 +196,12 @@ class _AddSaleModalState extends State<AddSaleModal> {
                       },
                     ),
 
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 14),
 
+                    // ---- 金額 ----
                     Text(
                       "金額（円）",
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
                       ),
@@ -215,57 +212,48 @@ class _AddSaleModalState extends State<AddSaleModal> {
                       controller: _priceCtrl,
                       keyboardType: TextInputType.number,
                       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
                       decoration: InputDecoration(
                         contentPadding: const EdgeInsets.symmetric(
-                          vertical: 8,
                           horizontal: 12,
+                          vertical: 8,
                         ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: Colors.black12),
                         ),
                       ),
                     ),
 
-                    const SizedBox(height: 10),
+                    const SizedBox(height: 14),
 
+                    // ---- 場所 ----
                     Text(
                       "場所（任意）",
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                     const SizedBox(height: 4),
 
-                    Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.black12),
-                        color: Colors.white,
-                      ),
-                      child: TextField(
-                        controller: _locationCtrl,
-                        decoration: const InputDecoration(
-                          border: InputBorder.none,
-                          contentPadding: EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 10,
-                          ),
+                    TextField(
+                      controller: _locationCtrl,
+                      decoration: InputDecoration(
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
                         ),
-                        style: const TextStyle(fontSize: 16),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                     ),
 
                     const SizedBox(height: 14),
 
+                    // ---- 買った人 ----
                     Text(
                       "買った人",
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
                       ),
@@ -274,6 +262,7 @@ class _AddSaleModalState extends State<AddSaleModal> {
 
                     TextField(
                       controller: _buyerCtrl,
+                      onSubmitted: (_) => _addBuyer(),
                       decoration: InputDecoration(
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: 12,
@@ -281,11 +270,8 @@ class _AddSaleModalState extends State<AddSaleModal> {
                         ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: Colors.black12),
                         ),
                       ),
-                      style: const TextStyle(fontSize: 16),
-                      onSubmitted: (_) => _addBuyer(),
                     ),
 
                     const SizedBox(height: 8),
@@ -294,48 +280,18 @@ class _AddSaleModalState extends State<AddSaleModal> {
                       spacing: 6,
                       runSpacing: 6,
                       children: _buyers.map((name) {
-                        return Container(
-                          padding: const EdgeInsets.symmetric(
-                            vertical: 6,
-                            horizontal: 12,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF2F2F2),
-                            borderRadius: BorderRadius.circular(
-                              12,
-                            ), // ← 角を少しシャープに
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                name,
-                                style: const TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w500,
-                                  color: Colors.black87,
-                                ),
-                              ),
-
-                              const SizedBox(width: 6),
-
-                              GestureDetector(
-                                onTap: () =>
-                                    setState(() => _buyers.remove(name)),
-                                child: const Icon(
-                                  Icons.close,
-                                  size: 18,
-                                  color: Colors.black54,
-                                ),
-                              ),
-                            ],
-                          ),
+                        return Chip(
+                          label: Text(name),
+                          deleteIcon: const Icon(Icons.close),
+                          onDeleted: () => setState(() => _buyers.remove(name)),
+                          backgroundColor: const Color(0xFFF2F2F2),
                         );
                       }).toList(),
                     ),
 
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 20),
 
+                    // ---- 保存 ----
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton(

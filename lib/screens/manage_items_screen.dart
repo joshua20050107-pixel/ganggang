@@ -18,7 +18,8 @@ class _ManageItemsScreenState extends State<ManageItemsScreen> {
   }
 
   Future<void> _delete(String name) async {
-    await ItemStore.delete(name);
+    await ItemStore.deactivate(name);
+
     setState(() {});
   }
 
