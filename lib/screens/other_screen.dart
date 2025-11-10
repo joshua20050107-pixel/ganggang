@@ -14,7 +14,7 @@ class OtherScreen extends StatelessWidget {
         children: [
           _NavCard(
             title: 'メンバー管理',
-            subtitle: '売った人 / 買った人として使う名前を追加・削除',
+            subtitle: 'メンバーを追加・削除',
             icon: Icons.group_outlined,
             onTap: () => Navigator.push(
               context,
