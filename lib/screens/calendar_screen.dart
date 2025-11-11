@@ -54,8 +54,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
               calendarStyle: CalendarStyle(
                 outsideDaysVisible: false,
-
-                // ✅ 今日の日付 = 薄い外枠の丸
                 todayDecoration: BoxDecoration(
                   shape: BoxShape.circle,
                   border: Border.all(color: Colors.black26, width: 1.4),
@@ -64,8 +62,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   color: Colors.black87,
                   fontWeight: FontWeight.w600,
                 ),
-
-                // ✅ 選択中の日付 = 黒塗り丸
                 selectedDecoration: const BoxDecoration(
                   color: Colors.black,
                   shape: BoxShape.circle,

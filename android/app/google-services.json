@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "30016596493",
+    "project_id": "okami-4bdff",
+    "storage_bucket": "okami-4bdff.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:30016596493:android:2a4f3f7ee7adc5eb768344",
+        "android_client_info": {
+          "package_name": "com.example.okami"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAlqFuKCe09cd6Q39bLmfG5G4zZ5UdxYDE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

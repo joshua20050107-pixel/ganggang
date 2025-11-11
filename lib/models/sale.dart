@@ -20,11 +20,9 @@ class Sale extends HiveObject {
   @HiveField(4)
   int itemPrice;
 
-  /// 個別支払い状態付き
   @HiveField(6)
   List<BuyerStatus> buyers;
 
-  /// 全体完了フラグ
   @HiveField(7)
   bool isPaid;
 

@@ -1,50 +1,76 @@
+import 'dart:async';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'team_ref.dart';
 
 class ItemStore {
-  static late Box<String> _box;
-  static late Box<bool> _activeBox;
+  static Box<String>? _itemsBox;
+  static Box<bool>? _activeBox;
+  static StreamSubscription? _listener;
 
   static Future<void> init() async {
-    _box = await Hive.openBox<String>('items');
+    await dispose();
+
+    _itemsBox = await Hive.openBox<String>('items');
     _activeBox = await Hive.openBox<bool>('items_active');
 
-    if (_box.isEmpty) {
-      final items = ["タバコ", "ライター", "お菓子", "水"];
-      await _box.addAll(items);
-      for (int i = 0; i < items.length; i++) {
-        await _activeBox.put(i, true);
-      }
-    }
+    _startListener();
   }
 
-  static List<String> getAll() => _box.values.toList();
+  static Box<String> get box => Hive.box<String>('items');
 
-  static List<String> getActive() {
-    final result = <String>[];
-    for (int i = 0; i < _box.length; i++) {
-      if (_activeBox.get(i, defaultValue: true) == true) {
-        result.add(_box.getAt(i)!.trim()); // ← 同じく trim 念押し
+  static void _startListener() {
+    _listener?.cancel();
+
+    _listener = TeamRef.items.snapshots().listen((snapshot) async {
+      final itemsBox = _itemsBox;
+      final activeBox = _activeBox;
+      if (itemsBox == null || !itemsBox.isOpen) return;
+      if (activeBox == null || !activeBox.isOpen) return;
+
+      await itemsBox.clear();
+      await activeBox.clear();
+
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+        final isActive = (data['active'] ?? true) as bool;
+        final itemName = doc.id;
+
+        await itemsBox.add(itemName);
+        await activeBox.put(itemName, isActive);
       }
-    }
-    return result;
+    });
   }
 
   static Future<void> add(String name) async {
     name = name.trim();
     if (name.isEmpty) return;
-    final index = await _box.add(name);
-    await _activeBox.put(index, true);
+    await TeamRef.items.doc(name).set({'active': true});
   }
 
-  /// ✅ 同じ名前は全部非表示にする（← 修正ポイント）
   static Future<void> deactivate(String name) async {
-    name = name.trim();
-    final list = _box.values.toList();
+    await TeamRef.items.doc(name.trim()).delete();
+  }
 
-    for (int i = 0; i < list.length; i++) {
-      if (list[i].trim() == name) {
-        await _activeBox.put(i, false); // break しない
-      }
+  static List<String> getAll() {
+    final items = _itemsBox?.values.toList() ?? const [];
+    final active = _activeBox;
+
+    if (active == null) return items;
+
+    return items
+        .where((name) => active.get(name, defaultValue: true) == true)
+        .toList();
+  }
+
+  static Future<void> dispose() async {
+    _listener?.cancel();
+    _listener = null;
+
+    if (Hive.isBoxOpen('items')) {
+      await Hive.box<String>('items').close();
+    }
+    if (Hive.isBoxOpen('items_active')) {
+      await Hive.box<bool>('items_active').close();
     }
   }
 }

@@ -7,9 +7,9 @@ import '../data/member_store.dart';
 import '../data/item_store.dart';
 
 class AddSaleModal extends StatefulWidget {
-  final DateTime selectedDate; // ← ★ 追加
+  final DateTime selectedDate;
 
-  const AddSaleModal({super.key, required this.selectedDate}); // ← ★ 変更
+  const AddSaleModal({super.key, required this.selectedDate});
 
   @override
   State<AddSaleModal> createState() => _AddSaleModalState();
@@ -38,10 +38,22 @@ class _AddSaleModalState extends State<AddSaleModal> {
   }
 
   Future<void> _save() async {
-    if (_selectedSeller == null || _selectedItem == null) return;
+    if (_selectedSeller == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("人を選んでください")));
+      return;
+    }
+
+    if (_selectedItem == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("商品名を選んでください")));
+      return;
+    }
 
     await SaleStore.addSale(
-      date: widget.selectedDate, // ← ★ 今日じゃなく今表示中の日
+      date: widget.selectedDate,
       location: _locationCtrl.text,
       itemName: _selectedItem!,
       itemPrice: int.tryParse(_priceCtrl.text) ?? 0,
@@ -56,6 +68,13 @@ class _AddSaleModalState extends State<AddSaleModal> {
 
   @override
   Widget build(BuildContext context) {
+    if (!Hive.isBoxOpen('members') ||
+        !Hive.isBoxOpen('members_active') ||
+        !Hive.isBoxOpen('items') ||
+        !Hive.isBoxOpen('items_active')) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
     return ValueListenableBuilder(
       valueListenable: Hive.box<String>('members').listenable(),
       builder: (_, __, ___) {
@@ -69,7 +88,7 @@ class _AddSaleModalState extends State<AddSaleModal> {
                   valueListenable: Hive.box<bool>('items_active').listenable(),
                   builder: (_, __, ___) {
                     final sellers = MemberStore.getActive();
-                    final items = ItemStore.getActive();
+                    final items = ItemStore.getAll();
 
                     return Center(
                       child: Material(
@@ -77,10 +96,14 @@ class _AddSaleModalState extends State<AddSaleModal> {
                         child: Container(
                           constraints: BoxConstraints(
                             maxHeight:
-                                MediaQuery.of(context).size.height * 0.65,
+                                MediaQuery.of(context).size.height * 0.63,
                             maxWidth: MediaQuery.of(context).size.width * 0.9,
                           ),
-                          padding: const EdgeInsets.all(20),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 14,
+                          ), // ← 少し縮める
+
                           decoration: BoxDecoration(
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(24),
@@ -101,7 +124,6 @@ class _AddSaleModalState extends State<AddSaleModal> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    // ---- Header ----
                                     Row(
                                       mainAxisAlignment:
                                           MainAxisAlignment.spaceBetween,
@@ -120,11 +142,9 @@ class _AddSaleModalState extends State<AddSaleModal> {
                                         ),
                                       ],
                                     ),
+                                    const SizedBox(height: 7),
 
-                                    const SizedBox(height: 16),
-
-                                    // ---- 売った人 ----
-                                    _SectionTitle("売った人"),
+                                    _SectionTitle(""),
                                     const SizedBox(height: 6),
                                     _wrapSelection(
                                       sellers,
@@ -133,9 +153,7 @@ class _AddSaleModalState extends State<AddSaleModal> {
                                           setState(() => _selectedSeller = v),
                                     ),
 
-                                    const SizedBox(height: 14),
-
-                                    // ---- 商品 ----
+                                    const SizedBox(height: 10),
                                     _SectionTitle("商品名"),
                                     const SizedBox(height: 6),
                                     _wrapSelection(
@@ -145,7 +163,6 @@ class _AddSaleModalState extends State<AddSaleModal> {
                                     ),
 
                                     const SizedBox(height: 14),
-
                                     _SectionTitle("金額（円）"),
                                     const SizedBox(height: 4),
                                     TextField(
@@ -158,7 +175,6 @@ class _AddSaleModalState extends State<AddSaleModal> {
                                     ),
 
                                     const SizedBox(height: 14),
-
                                     _SectionTitle("場所（任意）"),
                                     const SizedBox(height: 4),
                                     TextField(
@@ -167,7 +183,6 @@ class _AddSaleModalState extends State<AddSaleModal> {
                                     ),
 
                                     const SizedBox(height: 14),
-
                                     _SectionTitle("買った人"),
                                     const SizedBox(height: 4),
                                     TextField(
@@ -176,25 +191,29 @@ class _AddSaleModalState extends State<AddSaleModal> {
                                       decoration: inputStyle(),
                                     ),
                                     const SizedBox(height: 8),
+
                                     Wrap(
                                       spacing: 6,
                                       runSpacing: 6,
-                                      children: _buyers.map((name) {
-                                        return Chip(
-                                          label: Text(name),
-                                          deleteIcon: const Icon(Icons.close),
-                                          onDeleted: () => setState(
-                                            () => _buyers.remove(name),
-                                          ),
-                                          backgroundColor: const Color(
-                                            0xFFF2F2F2,
-                                          ),
-                                        );
-                                      }).toList(),
+                                      children: _buyers
+                                          .map(
+                                            (name) => Chip(
+                                              label: Text(name),
+                                              deleteIcon: const Icon(
+                                                Icons.close,
+                                              ),
+                                              onDeleted: () => setState(
+                                                () => _buyers.remove(name),
+                                              ),
+                                              backgroundColor: const Color(
+                                                0xFFF2F2F2,
+                                              ),
+                                            ),
+                                          )
+                                          .toList(),
                                     ),
 
                                     const SizedBox(height: 20),
-
                                     SizedBox(
                                       width: double.infinity,
                                       child: ElevatedButton(

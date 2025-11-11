@@ -1,46 +1,41 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
 // ★ models
 import 'models/sale.dart';
 import 'models/buyer_status.dart';
-import 'models/item.dart';
-import 'models/member.dart';
-
-// ★ data store
-import 'data/item_store.dart';
-import 'data/member_store.dart';
 
 // ★ screens
 import 'screens/main_navigation.dart';
+import 'screens/team_login_screen.dart';
 
-// ★ 追加（DatePicker に必要）
+// ★ DatePickerに必要
+
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   await Hive.initFlutter();
 
-  // ------------ Hive Adapter 登録（順番超重要） ------------
+  /// ✅ モデル登録（順番そのまま）
   Hive.registerAdapter(SaleAdapter());
   Hive.registerAdapter(BuyerStatusAdapter());
-  Hive.registerAdapter(ItemAdapter());
-  Hive.registerAdapter(MemberAdapter());
 
-  // ------------ Box Open（Sale は直接開く / Item & Member は Store 側で） ------------
+  /// ✅ app_config は *必ず最初に開く*（team 判定に必要）
+  await Hive.openBox<String>('app_config');
+
+  /// ✅ チーム選択後に同期される Box（初期は空でOK）
   await Hive.openBox<Sale>('sales');
+  await Hive.openBox<String>('members');
+  await Hive.openBox<bool>('members_active');
+  await Hive.openBox<String>('items');
+  await Hive.openBox<bool>('items_active');
 
-  await ItemStore.init();
-  await MemberStore.init();
-
-  // ✅ ここに追加：現状の中身確認
-  print("------ MEMBERS LIST ------");
-  print("members = ${Hive.box<String>('members').values.toList()}");
-  print("members_active = ${Hive.box<bool>('members_active').toMap()}");
-  print("--------------------------");
-
-  // 日本語日付対応
   await initializeDateFormatting('ja_JP', null);
 
   runApp(const MyApp());
@@ -51,21 +46,13 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final box = Hive.box<String>('app_config');
+    final team = box.get("team");
+
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: '売上管理',
-
-      theme: ThemeData(
-        useMaterial3: true,
-        scaffoldBackgroundColor: Colors.white,
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Colors.white,
-          foregroundColor: Colors.black,
-        ),
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
-      ),
-
-      // ✅ ここだけ新しく追加（DatePickerのエラー修正）
+      theme: ThemeData(useMaterial3: true),
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
@@ -73,7 +60,8 @@ class MyApp extends StatelessWidget {
       ],
       supportedLocales: const [Locale('ja', 'JP')],
 
-      home: const MainNavigation(),
+      /// ✅ チーム未選択ならログイン画面 → 選択後同期開始
+      home: team == null ? const TeamLoginScreen() : const MainNavigation(),
     );
   }
 }

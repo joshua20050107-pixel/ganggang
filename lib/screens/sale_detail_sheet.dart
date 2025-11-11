@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:hive/hive.dart';
-import 'package:intl/intl.dart'; // ← 追加
+import 'package:intl/intl.dart';
 import '../models/sale.dart';
 import '../models/buyer_status.dart';
+import '../data/sale_store.dart';
 
 class SaleDetailSheet extends StatefulWidget {
   final Sale sale;
@@ -13,28 +13,21 @@ class SaleDetailSheet extends StatefulWidget {
 }
 
 class _SaleDetailSheetState extends State<SaleDetailSheet> {
-  late Box<Sale> _box;
-
-  @override
-  void initState() {
-    super.initState();
-    _box = Hive.box<Sale>('sales');
-  }
-
-  void _toggleBuyer(BuyerStatus buyer) {
+  void _toggleBuyer(BuyerStatus buyer) async {
     setState(() {
       buyer.isPaid = !buyer.isPaid;
       widget.sale.isPaid = widget.sale.buyers.every((b) => b.isPaid);
-      widget.sale.save();
     });
+    await SaleStore.updateSale(widget.sale);
   }
 
   @override
   Widget build(BuildContext context) {
     final sale = widget.sale;
-    final formattedDate = DateFormat('yyyy/MM/dd').format(sale.date); // ← 日付
+    final formattedDate = DateFormat('yyyy/MM/dd').format(sale.date);
 
     return Dialog(
+      backgroundColor: Colors.white, // ← 追加
       insetPadding: const EdgeInsets.symmetric(horizontal: 30, vertical: 160),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
       child: SingleChildScrollView(
@@ -42,7 +35,7 @@ class _SaleDetailSheetState extends State<SaleDetailSheet> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // タイトル + 閉じる
+            // タイトル & 閉じる
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -58,25 +51,15 @@ class _SaleDetailSheetState extends State<SaleDetailSheet> {
             ),
             const SizedBox(height: 10),
 
-            // 🗓️ 日付（追加）
             Text(
               formattedDate,
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w400,
-                color: Colors.black38,
-              ),
+              style: const TextStyle(fontSize: 12, color: Colors.black38),
             ),
             const SizedBox(height: 20),
 
-            // 売った人（大きめ）
             Text(
               sale.sellerName.isEmpty ? '—' : sale.sellerName,
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-                color: Colors.black87,
-              ),
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 14),
 
@@ -121,6 +104,7 @@ class _SaleDetailSheetState extends State<SaleDetailSheet> {
 
             Column(
               children: sale.buyers.map((buyer) {
+                final paid = buyer.isPaid;
                 return Container(
                   margin: const EdgeInsets.only(bottom: 10),
                   padding: const EdgeInsets.symmetric(
@@ -139,7 +123,6 @@ class _SaleDetailSheetState extends State<SaleDetailSheet> {
                     ],
                   ),
                   child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
                         buyer.name,
@@ -148,7 +131,7 @@ class _SaleDetailSheetState extends State<SaleDetailSheet> {
                           fontWeight: FontWeight.w500,
                         ),
                       ),
-
+                      const Spacer(),
                       GestureDetector(
                         onTap: () => _toggleBuyer(buyer),
                         child: Container(
@@ -157,17 +140,17 @@ class _SaleDetailSheetState extends State<SaleDetailSheet> {
                             vertical: 6,
                           ),
                           decoration: BoxDecoration(
-                            color: buyer.isPaid
+                            color: paid
                                 ? Colors.greenAccent.shade100
                                 : Colors.redAccent.shade100,
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
-                            buyer.isPaid ? "完了 ✅" : "未払い",
+                            paid ? "完了 ✅" : "未払い",
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
-                              color: buyer.isPaid
+                              color: paid
                                   ? Colors.green.shade800
                                   : Colors.red.shade800,
                             ),

@@ -1,0 +1,55 @@
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "okami-4bdff",
+          "appId": "1:30016596493:android:2a4f3f7ee7adc5eb768344",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "ios": {
+        "default": {
+          "projectId": "okami-4bdff",
+          "appId": "1:30016596493:ios:2694077b0569e47e768344",
+          "uploadDebugSymbols": false,
+          "fileOutput": "ios/Runner/GoogleService-Info.plist"
+        }
+      },
+      "macos": {
+        "default": {
+          "projectId": "okami-4bdff",
+          "appId": "1:30016596493:ios:2694077b0569e47e768344",
+          "uploadDebugSymbols": false,
+          "fileOutput": "macos/Runner/GoogleService-Info.plist"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "okami-4bdff",
+          "configurations": {
+            "android": "1:30016596493:android:2a4f3f7ee7adc5eb768344",
+            "ios": "1:30016596493:ios:2694077b0569e47e768344",
+            "macos": "1:30016596493:ios:2694077b0569e47e768344",
+            "web": "1:30016596493:web:61fd700e506ee00c768344",
+            "windows": "1:30016596493:web:e5f9a024e3f93375768344"
+          }
+        }
+      }
+    }
+  },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "disallowLegacyRuntimeConfig": true,
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ]
+    }
+  ]
+}

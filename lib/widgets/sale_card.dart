@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/sale.dart';
 import '../models/buyer_status.dart';
+import '../data/sale_store.dart';
 
 class SaleCard extends StatelessWidget {
   final Sale sale;
@@ -18,20 +19,20 @@ class SaleCard extends StatelessWidget {
     required this.onLongPress,
   });
 
-  void _markPaid() {
+  Future<void> _markPaid() async {
     for (BuyerStatus b in sale.buyers) {
       b.isPaid = true;
     }
     sale.isPaid = true;
-    sale.save();
+    await SaleStore.updateSale(sale);
   }
 
-  void _undo() {
+  Future<void> _undo() async {
     for (BuyerStatus b in sale.buyers) {
       b.isPaid = false;
     }
     sale.isPaid = false;
-    sale.save();
+    await SaleStore.updateSale(sale);
   }
 
   @override
@@ -44,7 +45,6 @@ class SaleCard extends StatelessWidget {
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          // カード本体
           Container(
             decoration: BoxDecoration(
               color: Colors.white,
@@ -71,7 +71,6 @@ class SaleCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 6),
-
                 Text(
                   '¥${sale.total}',
                   style: const TextStyle(
@@ -81,15 +80,12 @@ class SaleCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 14),
-
                 Text(
                   sale.sellerName,
                   style: const TextStyle(fontSize: 13, color: Colors.black54),
                   overflow: TextOverflow.ellipsis,
                 ),
-
                 const Spacer(),
-
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -103,8 +99,6 @@ class SaleCard extends StatelessWidget {
                             : Colors.red.shade600,
                       ),
                     ),
-
-                    // ✅ 状態に応じてボタン切り替え
                     GestureDetector(
                       onTap: isPaid ? _undo : _markPaid,
                       child: Container(
@@ -132,7 +126,6 @@ class SaleCard extends StatelessWidget {
             ),
           ),
 
-          // 🗑️ 削除ボタン
           if (showDelete)
             Positioned(
               right: 8,

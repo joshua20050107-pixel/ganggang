@@ -13,7 +13,7 @@ class UnpaidScreen extends StatefulWidget {
 
 class _UnpaidScreenState extends State<UnpaidScreen> {
   late Box<Sale> _saleBox;
-  int? _deleteIndex; // ← 長押し中のカードを記録
+  String? _deleteId; // ← sale.id で追跡（安全）
 
   @override
   void initState() {
@@ -33,9 +33,10 @@ class _UnpaidScreenState extends State<UnpaidScreen> {
     );
   }
 
-  void _deleteSale(int index, List<Sale> list) {
-    list[index].delete();
-    setState(() => _deleteIndex = null);
+  /// ✅ 安全な削除（ID ベース）
+  void _deleteSale(Sale sale) {
+    sale.delete();
+    setState(() => _deleteId = null);
   }
 
   @override
@@ -52,7 +53,7 @@ class _UnpaidScreenState extends State<UnpaidScreen> {
         elevation: 0,
       ),
       body: GestureDetector(
-        onTap: () => setState(() => _deleteIndex = null), // ← 他タップで解除
+        onTap: () => setState(() => _deleteId = null),
         child: ValueListenableBuilder(
           valueListenable: _saleBox.listenable(),
           builder: (context, Box<Sale> box, _) {
@@ -73,18 +74,17 @@ class _UnpaidScreenState extends State<UnpaidScreen> {
               crossAxisSpacing: 14,
               mainAxisSpacing: 14,
               childAspectRatio: 0.82,
-              children: List.generate(unpaid.length, (index) {
-                final sale = unpaid[index];
-                final showDelete = _deleteIndex == index;
+              children: unpaid.map((sale) {
+                final showDelete = _deleteId == sale.id;
 
                 return SaleCard(
                   sale: sale,
                   onTap: () => _openDetail(sale),
                   showDelete: showDelete,
-                  onDelete: () => _deleteSale(index, unpaid),
-                  onLongPress: () => setState(() => _deleteIndex = index),
+                  onDelete: () => _deleteSale(sale),
+                  onLongPress: () => setState(() => _deleteId = sale.id),
                 );
-              }),
+              }).toList(),
             );
           },
         ),

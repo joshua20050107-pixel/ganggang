@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:okami/data/item_store.dart';
+import 'package:okami/data/member_store.dart';
+import 'package:okami/data/sale_store.dart';
 
 import 'home_screen.dart';
 import 'calendar_screen.dart';
@@ -15,38 +18,61 @@ class MainNavigation extends StatefulWidget {
 
 class _MainNavigationState extends State<MainNavigation> {
   int _currentIndex = 0;
-
-  // ✅ 日付を共有
   final ValueNotifier<DateTime> selectedDate = ValueNotifier(DateTime.now());
+  bool _initialized = false;
 
   @override
   void initState() {
     super.initState();
+    _initStores();
 
-    // ✅ カレンダーで日付変更 → 自動でホームへ戻る
     selectedDate.addListener(() {
-      setState(() {
-        _currentIndex = 0; // ← これが「押したらホームへ戻る」の動き
-      });
+      if (mounted) setState(() => _currentIndex = 0);
     });
+  }
+
+  Future<void> _initStores() async {
+    await ItemStore.dispose();
+    await MemberStore.dispose();
+    await SaleStore.dispose();
+
+    await ItemStore.init();
+    await MemberStore.init();
+    await SaleStore.init();
+
+    if (mounted) setState(() => _initialized = true);
+  }
+
+  @override
+  void dispose() {
+    selectedDate.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    if (!_initialized) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
     final screens = [
       HomeScreen(selectedDate: selectedDate),
       CalendarScreen(selectedDate: selectedDate),
-      MonthlyScreen(),
-      UnpaidScreen(),
-      OtherScreen(),
+      const MonthlyScreen(),
+      const UnpaidScreen(),
+      const OtherScreen(),
     ];
 
     return Scaffold(
       body: screens[_currentIndex],
       bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
         currentIndex: _currentIndex,
-        onTap: (index) => setState(() => _currentIndex = index),
+        onTap: (i) => setState(() => _currentIndex = i),
+        type: BottomNavigationBarType.fixed,
+        backgroundColor: Colors.white,
+        selectedItemColor: Colors.black87,
+        unselectedItemColor: Colors.black38,
+        elevation: 8,
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.home_outlined),

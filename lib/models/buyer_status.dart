@@ -2,7 +2,7 @@ import 'package:hive/hive.dart';
 
 part 'buyer_status.g.dart';
 
-@HiveType(typeId: 1) // ← Sale と被らなければOK
+@HiveType(typeId: 1)
 class BuyerStatus {
   @HiveField(0)
   String name;

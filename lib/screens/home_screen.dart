@@ -6,9 +6,10 @@ import '../screens/sale_detail_sheet.dart';
 import '../models/sale.dart';
 import '../widgets/add_sale_modal.dart';
 import '../widgets/sale_card.dart';
+import '../data/sale_store.dart';
 
 class HomeScreen extends StatefulWidget {
-  final ValueNotifier<DateTime> selectedDate; // ★ 共有日付
+  final ValueNotifier<DateTime> selectedDate;
   const HomeScreen({super.key, required this.selectedDate});
 
   @override
@@ -16,18 +17,11 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  late Box<Sale> _saleBox;
   String? _showDeleteForId;
 
-  @override
-  void initState() {
-    super.initState();
-    _saleBox = Hive.box<Sale>('sales');
-  }
-
   List<Sale> _filteredSales(DateTime day) {
-    final sales = _saleBox.values.toList();
-    return sales
+    final box = Hive.box<Sale>('sales');
+    return box.values
         .where(
           (s) =>
               s.date.year == day.year &&
@@ -44,16 +38,20 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   int _totalSales(List<Sale> sales) {
-    return sales.fold<int>(0, (sum, s) => sum + s.total);
+    return sales.fold(0, (sum, s) => sum + s.total);
   }
 
   @override
   Widget build(BuildContext context) {
+    if (!Hive.isBoxOpen('sales')) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
     return ValueListenableBuilder(
       valueListenable: widget.selectedDate,
       builder: (_, DateTime selectedDay, __) {
         return ValueListenableBuilder(
-          valueListenable: _saleBox.listenable(),
+          valueListenable: Hive.box<Sale>('sales').listenable(),
           builder: (_, __, ___) {
             final sales = _filteredSales(selectedDay);
             final total = _totalSales(sales);
@@ -61,27 +59,27 @@ class _HomeScreenState extends State<HomeScreen> {
 
             return Scaffold(
               backgroundColor: const Color(0xFFF6F6F7),
-
-              // ★ ここ修正：selectedDay を渡す
-              floatingActionButton: FloatingActionButton(
-                onPressed: () {
-                  showDialog(
-                    context: context,
-                    barrierDismissible: true,
-                    builder: (_) => AddSaleModal(selectedDate: selectedDay),
-                  );
-                },
-                backgroundColor: Colors.black,
-                child: const Icon(Icons.add, color: Colors.white),
+              floatingActionButton: Padding(
+                padding: const EdgeInsets.only(bottom: 40), // ← ここ好きな数値に
+                child: FloatingActionButton(
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      barrierDismissible: true,
+                      builder: (_) => AddSaleModal(selectedDate: selectedDay),
+                    );
+                  },
+                  backgroundColor: Colors.black,
+                  child: const Icon(Icons.add, color: Colors.white),
+                ),
               ),
+
               floatingActionButtonLocation:
                   FloatingActionButtonLocation.centerFloat,
-
               body: SafeArea(
                 child: Column(
                   children: [
                     const SizedBox(height: 14),
-
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -103,7 +101,6 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ],
                     ),
-
                     const SizedBox(height: 12),
                     const Text(
                       '今日の売上',
@@ -113,7 +110,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                     const SizedBox(height: 6),
-
                     Text(
                       '¥${NumberFormat('#,###').format(total)}',
                       style: const TextStyle(
@@ -128,14 +124,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       color: Colors.black12,
                     ),
                     const SizedBox(height: 14),
-
                     Expanded(
                       child: GestureDetector(
-                        onTap: () {
-                          if (_showDeleteForId != null) {
-                            setState(() => _showDeleteForId = null);
-                          }
-                        },
+                        onTap: () => setState(() => _showDeleteForId = null),
                         child: NotificationListener<ScrollNotification>(
                           onNotification: (_) {
                             if (_showDeleteForId != null) {
@@ -146,11 +137,11 @@ class _HomeScreenState extends State<HomeScreen> {
                           child: sales.isEmpty
                               ? const Center(child: Text('まだ売上はありません'))
                               : GridView.builder(
-                                  padding: const EdgeInsets.only(
-                                    bottom: 80,
-                                    left: 14,
-                                    right: 14,
-                                    top: 4,
+                                  padding: const EdgeInsets.fromLTRB(
+                                    14,
+                                    4,
+                                    14,
+                                    80,
                                   ),
                                   itemCount: sales.length,
                                   gridDelegate:
@@ -183,7 +174,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                         () => _showDeleteForId = sale.id,
                                       ),
                                       onDelete: () async {
-                                        await sale.delete();
+                                        await SaleStore.deleteSale(sale.id);
                                         if (!mounted) return;
                                         setState(() => _showDeleteForId = null);
                                       },

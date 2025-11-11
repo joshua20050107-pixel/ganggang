@@ -23,6 +23,14 @@ dependencies:
   table_calendar: ^3.0.9
   fl_chart: ^0.68.0
 
+  # ✅ Firebase (現状に合わせてそのまま)
+  firebase_core: ^4.2.1
+  cloud_firestore: ^6.1.0
+  firebase_auth: ^6.1.2
+
+
+
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
