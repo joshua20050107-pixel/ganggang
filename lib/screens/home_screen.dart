@@ -62,12 +62,13 @@ class _HomeScreenState extends State<HomeScreen> {
             return Scaffold(
               backgroundColor: const Color(0xFFF6F6F7),
 
+              // ★ ここ修正：selectedDay を渡す
               floatingActionButton: FloatingActionButton(
                 onPressed: () {
                   showDialog(
                     context: context,
                     barrierDismissible: true,
-                    builder: (_) => const AddSaleModal(),
+                    builder: (_) => AddSaleModal(selectedDate: selectedDay),
                   );
                 },
                 backgroundColor: Colors.black,
@@ -131,14 +132,12 @@ class _HomeScreenState extends State<HomeScreen> {
                     Expanded(
                       child: GestureDetector(
                         onTap: () {
-                          // 外を押したら削除モード解除
                           if (_showDeleteForId != null) {
                             setState(() => _showDeleteForId = null);
                           }
                         },
                         child: NotificationListener<ScrollNotification>(
                           onNotification: (_) {
-                            // スクロールしたら削除モード解除
                             if (_showDeleteForId != null) {
                               setState(() => _showDeleteForId = null);
                             }

@@ -25,14 +25,20 @@ Future<void> main() async {
   // ------------ Hive Adapter 登録（順番超重要） ------------
   Hive.registerAdapter(SaleAdapter());
   Hive.registerAdapter(BuyerStatusAdapter());
-  Hive.registerAdapter(ItemAdapter()); // ★ 追加
-  Hive.registerAdapter(MemberAdapter()); // ★ 追加
+  Hive.registerAdapter(ItemAdapter());
+  Hive.registerAdapter(MemberAdapter());
 
   // ------------ Box Open（Sale は直接開く / Item & Member は Store 側で） ------------
   await Hive.openBox<Sale>('sales');
 
-  await ItemStore.init(); // ★ Active/Inactive 対応済み
-  await MemberStore.init(); // ★ Active/Inactive 対応済み
+  await ItemStore.init();
+  await MemberStore.init();
+
+  // ✅ ここに追加：現状の中身確認
+  print("------ MEMBERS LIST ------");
+  print("members = ${Hive.box<String>('members').values.toList()}");
+  print("members_active = ${Hive.box<bool>('members_active').toMap()}");
+  print("--------------------------");
 
   // 日本語日付対応
   await initializeDateFormatting('ja_JP', null);

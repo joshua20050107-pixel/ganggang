@@ -3,8 +3,6 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../models/sale.dart';
-import '../data/item_store.dart';
-import '../data/member_store.dart';
 
 class MonthlyScreen extends StatefulWidget {
   const MonthlyScreen({super.key});
@@ -19,7 +17,7 @@ class _MonthlyScreenState extends State<MonthlyScreen> {
   String? _selectedItem;
   String? _selectedSeller;
 
-  // ✅ 今見ている月
+  // 今見ている月
   DateTime _currentMonth = DateTime(DateTime.now().year, DateTime.now().month);
 
   @override
@@ -28,7 +26,7 @@ class _MonthlyScreenState extends State<MonthlyScreen> {
     _saleBox = Hive.box<Sale>('sales');
   }
 
-  // ✅ 指定月のデータ取得
+  // 指定月のデータ
   List<Sale> _salesOfMonth(DateTime month) {
     return _saleBox.values
         .where((s) => s.date.year == month.year && s.date.month == month.month)
@@ -53,17 +51,26 @@ class _MonthlyScreenState extends State<MonthlyScreen> {
     return map;
   }
 
-  // ✅ 月移動
   void _changeMonth(int offset) {
     setState(() {
       _currentMonth = DateTime(
         _currentMonth.year,
         _currentMonth.month + offset,
       );
+      // 月を変えた時、存在しない選択はクリア
+      final sales = _salesOfMonth(_currentMonth);
+      final itemsInMonth = sales.map((s) => s.itemName).toSet();
+      final sellersInMonth = sales.map((s) => s.sellerName).toSet();
+      if (_selectedItem != null && !itemsInMonth.contains(_selectedItem)) {
+        _selectedItem = null;
+      }
+      if (_selectedSeller != null &&
+          !sellersInMonth.contains(_selectedSeller)) {
+        _selectedSeller = null;
+      }
     });
   }
 
-  // ✅ 月選択
   Future<void> _pickMonth() async {
     final result = await showDatePicker(
       context: context,
@@ -77,11 +84,21 @@ class _MonthlyScreenState extends State<MonthlyScreen> {
     if (result != null) {
       setState(() {
         _currentMonth = DateTime(result.year, result.month);
+        // 月変更時の整合
+        final sales = _salesOfMonth(_currentMonth);
+        final itemsInMonth = sales.map((s) => s.itemName).toSet();
+        final sellersInMonth = sales.map((s) => s.sellerName).toSet();
+        if (_selectedItem != null && !itemsInMonth.contains(_selectedItem)) {
+          _selectedItem = null;
+        }
+        if (_selectedSeller != null &&
+            !sellersInMonth.contains(_selectedSeller)) {
+          _selectedSeller = null;
+        }
       });
     }
   }
 
-  // ✅ 絞り込みUI（灰色のポップ）
   Future<void> _showFilterSheet({
     required List<String> items,
     required ValueChanged<String?> onSelected,
@@ -100,7 +117,9 @@ class _MonthlyScreenState extends State<MonthlyScreen> {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(18),
-                boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 12)],
+                boxShadow: const [
+                  BoxShadow(color: Colors.black26, blurRadius: 12),
+                ],
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -145,8 +164,16 @@ class _MonthlyScreenState extends State<MonthlyScreen> {
     return ValueListenableBuilder(
       valueListenable: _saleBox.listenable(),
       builder: (_, __, ___) {
+        // まず当月売上を取得
         List<Sale> sales = _salesOfMonth(_currentMonth);
 
+        // フィルター候補は「当月に登場したもののみ」
+        final itemsInMonth = sales.map((s) => s.itemName).toSet().toList()
+          ..sort();
+        final sellersInMonth = sales.map((s) => s.sellerName).toSet().toList()
+          ..sort();
+
+        // 選択されたフィルターを適用
         if (_selectedSeller != null) {
           sales = sales.where((s) => s.sellerName == _selectedSeller).toList();
         }
@@ -156,7 +183,10 @@ class _MonthlyScreenState extends State<MonthlyScreen> {
 
         final total = _total(sales);
 
-        Map<String, int> grouped =
+        // グラフのグルーピング：
+        // ・商品を選んでいる → 売った人別
+        // ・それ以外 → 商品別
+        final Map<String, int> grouped =
             (_selectedItem != null && _selectedSeller == null)
             ? _sumBySeller(sales)
             : _sumByItem(sales);
@@ -177,9 +207,7 @@ class _MonthlyScreenState extends State<MonthlyScreen> {
             padding: const EdgeInsets.all(15),
             child: Column(
               children: [
-                const SizedBox(height: 1),
-
-                // ✅ 月の切り替え UI
+                // 月の切り替え
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -204,7 +232,7 @@ class _MonthlyScreenState extends State<MonthlyScreen> {
                   ],
                 ),
 
-                const SizedBox(height: 11),
+                const SizedBox(height: 4),
 
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
@@ -212,7 +240,7 @@ class _MonthlyScreenState extends State<MonthlyScreen> {
                     _filterButton(
                       label: _selectedItem ?? "商品▼",
                       onTap: () => _showFilterSheet(
-                        items: ItemStore.getActive(),
+                        items: itemsInMonth,
                         title: "商品で絞り込む",
                         onSelected: (v) => setState(() => _selectedItem = v),
                       ),
@@ -221,7 +249,7 @@ class _MonthlyScreenState extends State<MonthlyScreen> {
                     _filterButton(
                       label: _selectedSeller ?? "人▼",
                       onTap: () => _showFilterSheet(
-                        items: MemberStore.getActive(),
+                        items: sellersInMonth,
                         title: "人で絞り込む",
                         onSelected: (v) => setState(() => _selectedSeller = v),
                       ),
@@ -229,7 +257,7 @@ class _MonthlyScreenState extends State<MonthlyScreen> {
                   ],
                 ),
 
-                const SizedBox(height: 26),
+                const SizedBox(height: 15),
 
                 Text(
                   "¥${NumberFormat('#,###').format(total)}",

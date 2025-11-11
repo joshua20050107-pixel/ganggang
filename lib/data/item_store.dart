@@ -19,28 +19,32 @@ class ItemStore {
 
   static List<String> getAll() => _box.values.toList();
 
-  /// ✅ 今後の追加に使う「アクティブな商品」
   static List<String> getActive() {
     final result = <String>[];
     for (int i = 0; i < _box.length; i++) {
       if (_activeBox.get(i, defaultValue: true) == true) {
-        result.add(_box.getAt(i)!);
+        result.add(_box.getAt(i)!.trim()); // ← 同じく trim 念押し
       }
     }
     return result;
   }
 
   static Future<void> add(String name) async {
-    if (name.trim().isEmpty) return;
-    final index = await _box.add(name.trim());
+    name = name.trim();
+    if (name.isEmpty) return;
+    final index = await _box.add(name);
     await _activeBox.put(index, true);
   }
 
-  /// ✅ 非表示化（削除しない）
+  /// ✅ 同じ名前は全部非表示にする（← 修正ポイント）
   static Future<void> deactivate(String name) async {
-    final index = _box.values.toList().indexOf(name);
-    if (index != -1) {
-      await _activeBox.put(index, false);
+    name = name.trim();
+    final list = _box.values.toList();
+
+    for (int i = 0; i < list.length; i++) {
+      if (list[i].trim() == name) {
+        await _activeBox.put(i, false); // break しない
+      }
     }
   }
 }
